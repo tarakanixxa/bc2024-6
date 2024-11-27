@@ -35,7 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 const upload = multer();
 
 app.get('/UploadForm.html', (req, res) => {
-  const filePath = path.resolve('D:/DZ/bc 2024/bc2024-5/UploadForm.html');
+  const filePath = path.resolve(__dirname, 'UploadForm.html'); 
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error('Помилка при відправці файлу:', err);
@@ -106,20 +106,24 @@ app.delete('/notes/:name', async (req, res) => {
   }
 });
 
-app.get('/notes', async (req, res) => {
+app.get('/notes/:name', async (req, res) => {
+  const { name } = req.params;
+  const filePath = path.join(cacheDirectory, name.endsWith('.txt') ? name : `${name}.txt`);
+
+  console.log('--- Запит GET ---');
+  console.log('Ім\'я файлу з URL:', name);
+  console.log('Повний шлях до файлу:', filePath);
+
   try {
-    const files = await fs.readdir(cacheDirectory);
-    const notesList = await Promise.all(
-      files.map(async (file) => {
-        const note = await fs.readFile(path.join(cacheDirectory, file), 'utf8');
-        return { name: file, text: note };
-      })
-    );
-    return res.status(200).json(notesList);
+    const note = await fs.readFile(filePath, 'utf8');
+    console.log('Знайдено файл:', filePath);
+    return res.status(200).send(note);
   } catch (error) {
-    return res.status(500).send('Error reading notes');
+    console.error('Помилка при читанні файлу:', error.message);
+    return res.status(404).send('Not found');
   }
 });
+
 
 app.listen(port, host, () => {
   console.log(`Сервер запущено на http://${host}:${port}`);
