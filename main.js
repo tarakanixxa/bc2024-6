@@ -3,6 +3,8 @@ const express = require('express');
 const { Command } = require('commander');
 const multer = require('multer');
 const path = require('path');
+const swaggerJSDoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const program = new Command();
 
@@ -29,13 +31,49 @@ createDirectoryIfNotExists(cacheDirectory);
 
 const app = express();
 
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Notes API',
+    version: '1.0.0',
+    description: 'API для роботи з нотатками',
+    contact: {
+      name: 'Your Name',
+      url: 'http://yourwebsite.com',
+      email: 'youremail@example.com',
+    },
+  },
+  servers: [
+    {
+      url: `http://${host}:${port}`,
+    },
+  ],
+};
+
+const options = {
+  swaggerDefinition,
+  apis: ['./main.js'],  
+};
+
+const swaggerSpec = swaggerJSDoc(options);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const upload = multer();
 
+/**
+ * @swagger
+ * /UploadForm.html:
+ *   get:
+ *     description: Завантажити форму для введення нотатки
+ *     responses:
+ *       200:
+ *         description: Успішно завантажено форму
+ */
 app.get('/UploadForm.html', (req, res) => {
-  const filePath = path.resolve(__dirname, 'UploadForm.html'); 
+  const filePath = path.resolve(__dirname, 'UploadForm.html');
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error('Помилка при відправці файлу:', err);
@@ -44,6 +82,33 @@ app.get('/UploadForm.html', (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /write:
+ *   post:
+ *     description: Створити нову нотатку
+ *     parameters:
+ *       - in: body
+ *         name: note
+ *         description: Нотатка для збереження
+ *         schema:
+ *           type: object
+ *           required:
+ *             - note_name
+ *             - note
+ *           properties:
+ *             note_name:
+ *               type: string
+ *               description: Ім'я файлу для нотатки
+ *             note:
+ *               type: string
+ *               description: Текст нотатки
+ *     responses:
+ *       201:
+ *         description: Нотатку успішно створено
+ *       400:
+ *         description: Невірний запит
+ */
 app.post('/write', upload.none(), async (req, res) => {
   const { note_name, note } = req.body;
 
@@ -66,7 +131,22 @@ app.post('/write', upload.none(), async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /notes/{name}:
+ *   get:
+ *     description: Отримати нотатку за іменем
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         description: Ім'я файлу нотатки
+ *     responses:
+ *       200:
+ *         description: Нотатку знайдено
+ *       404:
+ *         description: Нотатку не знайдено
+ */
 app.get('/notes/:name', async (req, res) => {
   const { name } = req.params;
   const filePath = path.join(cacheDirectory, name);
@@ -79,7 +159,32 @@ app.get('/notes/:name', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /notes/{name}:
+ *   put:
+ *     description: Оновити нотатку
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         description: Ім'я файлу нотатки
+ *       - in: body
+ *         name: text
+ *         description: Новий текст нотатки
+ *         schema:
+ *           type: object
+ *           required:
+ *             - text
+ *           properties:
+ *             text:
+ *               type: string
+ *     responses:
+ *       200:
+ *         description: Нотатку успішно оновлено
+ *       500:
+ *         description: Помилка при оновленні нотатки
+ */
 app.put('/notes/:name', async (req, res) => {
   const { name } = req.params;
   const { text } = req.body;
@@ -93,7 +198,22 @@ app.put('/notes/:name', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /notes/{name}:
+ *   delete:
+ *     description: Видалити нотатку
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         description: Ім'я файлу нотатки
+ *     responses:
+ *       200:
+ *         description: Нотатку успішно видалено
+ *       404:
+ *         description: Нотатку не знайдено
+ */
 app.delete('/notes/:name', async (req, res) => {
   const { name } = req.params;
   const filePath = path.join(cacheDirectory, name);
@@ -105,25 +225,6 @@ app.delete('/notes/:name', async (req, res) => {
     return res.status(404).send('Not found');
   }
 });
-
-app.get('/notes/:name', async (req, res) => {
-  const { name } = req.params;
-  const filePath = path.join(cacheDirectory, name.endsWith('.txt') ? name : `${name}.txt`);
-
-  console.log('--- Запит GET ---');
-  console.log('Ім\'я файлу з URL:', name);
-  console.log('Повний шлях до файлу:', filePath);
-
-  try {
-    const note = await fs.readFile(filePath, 'utf8');
-    console.log('Знайдено файл:', filePath);
-    return res.status(200).send(note);
-  } catch (error) {
-    console.error('Помилка при читанні файлу:', error.message);
-    return res.status(404).send('Not found');
-  }
-});
-
 
 app.listen(port, host, () => {
   console.log(`Сервер запущено на http://${host}:${port}`);

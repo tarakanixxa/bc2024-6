@@ -23,4 +23,5 @@ ENV HOST 0.0.0.0
 ENV CACHE /app/cache
 
 
-CMD ["npx", "nodemon", "main.js", "--host", "0.0.0.0", "--port", "3000", "--cache", "/app/cache"]
+CMD ["node", "main.js", "--host", "0.0.0.0", "--port", "3000", "--cache", "/app/cache"]
+
